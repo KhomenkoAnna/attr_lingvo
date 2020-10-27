@@ -1,13 +1,11 @@
 # This is a basic workflow that is manually triggered
 
-name: Deploy
+name: Deploy to test server
 
 # Controls when the action will run. Workflow runs when manually triggered using the UI
 # or API.
 on:
-  push:
-    branches:
-    - dev
+  workflow_dispatch:
 
 # A workflow run is made up of one or more jobs that can run sequentially or in parallel
 jobs:
@@ -18,9 +16,15 @@ jobs:
 
     # Steps represent a sequence of tasks that will be executed as part of the job
     steps:
-    - name: switch directory
-      run: cd /opt/attr_lingvo
-    - name: build static
-      run: sudo yarn build
-    - name: restart server
-      run: sudo systemctl restart attr_lingvo
+    - name: Execute SSH commmands on remote server
+      uses: JimCronqvist/action-ssh@master
+      with:
+        hosts: '${{ secrets.DEPLOY_USER }}@${{ secrets.DEPLOY_HOST_DEV }}'
+        privateKey: ${{ secrets.DEPLOY_KEY }}
+        debug: false
+        command: |
+          cd /opt/attr_lingvo
+          sudo git pull
+          sudo yarn build
+          sudo systemctl restart attr_lingvo
+
