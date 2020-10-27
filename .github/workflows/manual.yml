@@ -21,7 +21,7 @@ jobs:
       with:
         hosts: '${{ secrets.DEPLOY_USER }}@${{ secrets.DEPLOY_HOST_DEV }}'
         privateKey: ${{ secrets.DEPLOY_KEY }}
-        debug: false
+        debug: true
         command: |
           cd /opt/attr_lingvo
           sudo git pull
