@@ -21,7 +21,7 @@ ROOT_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
 OPENCORPORA_KEYWORDS = {}
 
-with open(os.path.join(ROOT_DIR + '/data/1grams-3.txt')) as f:
+with open(os.path.join(ROOT_DIR + '/data/1grams-3.txt'), encoding='utf-8') as f:
     for line in f:
         key, value = line.split()
         OPENCORPORA_KEYWORDS[value] = int(key)

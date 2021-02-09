@@ -245,6 +245,13 @@
                     <div class="viewport">
                         <md-list>
                             <md-subheader>Описание тезауруса языковой личности</md-subheader>
+                            <md-list-item :key="attributes.word_forms_count.name">
+                                <md-checkbox v-model="attributes.word_forms_count.checked"/>
+                                <span class="md-list-item-text">{{ attributes.word_forms_count.name }}</span>
+                            </md-list-item>
+                            <md-list-item v-if="attributes.word_forms_count.checked === true">
+                               <input v-model="normal_form" placeholder='Начальная форма'>
+                            </md-list-item>
                             <md-list-item :key="attributes.keywords_count.name">
                                 <md-checkbox v-model="attributes.keywords_count.checked"/>
                                 <span class="md-list-item-text">{{ attributes.keywords_count.name }}</span>
@@ -434,6 +441,7 @@ export default {
     third_step: false,
     results_step: false,
     first_text: '',
+    normal_form: '',
     second_text: '',
     first_text_file: '',
     second_text_file: '',
@@ -476,6 +484,7 @@ export default {
       'single_verb_count': {name: 'Глагольные односоставные предложения', checked: true},
       'appeal_count': {name: 'Обращения', checked: true},
       'dichotomy_pronouns_count': {name: 'Дихотомия "свой/чужой"', checked: true},
+      'word_forms_count': {name: 'Количество употреблений форм слова', checked: true},
       'complex_words_count': {name: 'Сложные слова полуслитного написания', checked: true},
       'modal_particles_count': {name: 'Модальные частицы', checked: true},
       'interjections_count': {name: 'Междометия', checked: true},
@@ -608,7 +617,8 @@ export default {
         'first_text_genre': this.first_text_genre,
         'second_text': this.second_text,
         'second_text_genre': this.second_text_genre,
-        'attributes': this.attributes
+        'attributes': this.attributes,
+        'normal_form': this.normal_form
       }
       $backend.calculateResults(payload)
         .then(responseData => {

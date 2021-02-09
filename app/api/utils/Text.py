@@ -1,6 +1,11 @@
+import pickle
+import re
 from collections import OrderedDict
 
 import nltk
+from nltk.tokenize import WordPunctTokenizer
+import pymorphy2
+import numpy as np
 from flask import current_app
 from pyaspeller import YandexSpeller
 
@@ -26,13 +31,45 @@ SPELLER = YandexSpeller(lang='ru',
                         ignore_uppercase=True,
                         ignore_urls=True,
                         )
+STATES = ['STARTSYM', 'ADJ', 'ADP', 'ADV', 'AUX', 'CCONJ', 'DET', 'INTJ', 'NOUN', 'NUM', 'PART', 'PRON',
+                  'PROPN', 'PUNCT', 'SCONJ', 'SYM', 'VERB', 'ENDSYM']
+
+ANNOTATION_DECIPHER = {
+            'VERB': ['VERB', 'INFN', 'PRTF', 'PRTS', 'GRND'],
+            'CCONJ': ['CONJ'],
+            'SCONJ': ['CONJ'],
+            'ADJ': ['ADJS', 'ADJF', 'COMP'],
+            'NUM': ['NUMR', 'NUMB', 'intg', 'real'],
+            'PRON': ['NPRO'],
+            'DET': ['ADJS', 'ADJF'],
+            'ADP': ['PREP'],
+            'ADV': ['ADVB', 'PRED'],
+            'INTJ': ['INTJ'],
+            'PART': ['PRCL'],
+            'PUNCT': ['PNCT'],
+            'SYM': ['PNCT'],
+            'NOUN': ['NOUN'],
+            'PROPN': ['NOUN'],
+        }
+
+with open('./app/api/data/trans_probs.pickle', 'rb') as f:
+    TRANS_PROBS = pickle.load(f)
+with open('./app/api/data/emis_probs.pickle', 'rb') as f:
+    EMIS_PROBS = pickle.load(f)
+with open('./app/api/data/times_first_trans.pickle', 'rb') as f:
+    TRANS_COUNTS = pickle.load(f)
+with open('./app/api/data/times_emitted_from.pickle', 'rb') as f:
+    EMIS_COUNTS = pickle.load(f)
+
+MORPH_ANALYZER = pymorphy2.MorphAnalyzer()
 
 
 class Text:
-    def __init__(self, text, genre, attributes):
+    def __init__(self, text, genre, attributes, normal_form):
         self.text = text
         self.attributes = attributes
         self.genre = genre
+        self.normal_form = normal_form
 
         self.sentences = self.__tokenize_sentences()
         self.morph_parsed_sentences = [parse_sentence_morph(sentence) for sentence in self.sentences]
@@ -107,7 +144,7 @@ class Text:
                                        'debug': None},
                 'total_conjunctions': {'value': self.total_conjunctions,
                                        'description': 'Количество союзов',
-                                       'debug': None},
+                                       'debug': None}
             }
         )
 
@@ -223,6 +260,127 @@ class Text:
         except Exception as ex:
             current_app.logger.error(f'Exceptions trying to get/parse errors: {ex}')
             return NAN_ELEMENT
+
+    def viterbi(self, tokens, states):
+        matrix = []
+        for i in range(len(tokens)):
+            matrix.append([])
+            if i == 0 or i == len(tokens) - 1:
+                for j in range(len(states)):
+                    matrix[i].append(0)
+            else:
+                for j in range(len(states)):
+                    if j == 0 or j == len(states) - 1:
+                        matrix[i].append(0)
+                    else:
+                        matrix[i].append({})
+        matrix[0][0] = [1]
+        matrix[-1][-1] = {}
+        for i in range(1, len(matrix)):
+            for j in range(len(matrix[i])):
+                if matrix[i][j] != 0:
+                    for k in range(len(matrix[i - 1])):
+                        if matrix[i - 1][k] != 0:
+                            if (states[k], states[j]) in TRANS_PROBS.keys() and (states[j], tokens[i]) in EMIS_PROBS.keys():
+                                lst = matrix[i - 1][k] + [TRANS_PROBS[(states[k], states[j])]] + [EMIS_PROBS[(states[j], tokens[i])]]
+                            elif (states[k], states[j]) in TRANS_PROBS.keys() and (states[j], tokens[i]) not in EMIS_PROBS.keys():
+                                lst = matrix[i - 1][k] + [TRANS_PROBS[(states[k], states[j])]] + [1 / (125308 + EMIS_COUNTS[states[j]])]
+                            elif (states[k], states[j]) not in TRANS_PROBS.keys() and (states[j], tokens[i]) in EMIS_PROBS.keys():
+                                lst = matrix[i - 1][k] + [1 / (125308 + TRANS_COUNTS[states[k]])] + [EMIS_PROBS[(states[j], tokens[i])]]
+                            elif (states[k], states[j]) not in TRANS_PROBS.keys() and (states[j], tokens[i]) not in EMIS_PROBS.keys():
+                                lst = matrix[i - 1][k] + [1 / (125308 + TRANS_COUNTS[states[k]])] + [1 / (125308 + EMIS_COUNTS[states[j]])]
+                            matrix[i][j][tuple(lst)] = np.prod(np.array(lst))
+                    for key in matrix[i][j].keys():
+                        if matrix[i][j][key] == max(matrix[i][j].values()):
+                            break
+                    matrix[i][j] = list(key)
+        pos_tag = dict()
+        pos_tag[tokens[-1]] = states[-1]
+        for i in range(len(matrix[-2::-1])):
+            pos_tag[tokens[-2::-1][i]] = states[matrix[-2::-1][i].index(matrix[-1][-1][:-2 * (i + 1)])]
+        del pos_tag['^']
+        del pos_tag['$']
+        tokens.remove('^')
+        tokens.remove('$')
+        return pos_tag
+
+    def search(self):
+        normal_form_to_search = self.normal_form
+        normal_forms = {}
+        sentences_positions_to_mark = {}
+        debug = []
+        for i in range(len(self.sentences)):
+            sentence_tokenized = WordPunctTokenizer().tokenize(self.sentences[i].lower())
+            sentence_tokenized.insert(0, '^')
+            sentence_tokenized.append("$")
+            primary_pos_tag = self.viterbi(sentence_tokenized, STATES)
+            for token in sentence_tokenized:
+                pos_tag_variant_probabilities = {}
+                norm_forms = {}
+                for k in range(len(MORPH_ANALYZER.parse(token))):
+                    if MORPH_ANALYZER.parse(token)[k].tag.POS not in pos_tag_variant_probabilities.keys():
+                        pos_tag_variant_probabilities[MORPH_ANALYZER.parse(token)[k].tag.POS] = \
+                        MORPH_ANALYZER.parse(token)[
+                            k].score
+                    else:
+                        pos_tag_variant_probabilities[MORPH_ANALYZER.parse(token)[k].tag.POS] += \
+                            MORPH_ANALYZER.parse(token)[
+                                k].score
+                    if MORPH_ANALYZER.parse(token)[k].tag.POS not in norm_forms.keys():
+                        norm_forms[MORPH_ANALYZER.parse(token)[k].tag.POS] = MORPH_ANALYZER.parse(token)[k].normal_form
+                possible = set(pos_tag_variant_probabilities.keys()).intersection(
+                    set(ANNOTATION_DECIPHER[primary_pos_tag[token]]))
+                if len(possible) > 0:
+                    for variant in possible:
+                        if pos_tag_variant_probabilities[variant] == max(
+                                [pos_tag_variant_probabilities[el] for el in possible]):
+                            normal_forms[token] = norm_forms[variant]
+                            break
+                elif len(possible) == 0:
+                    normal_forms[token] = MORPH_ANALYZER.parse(token)[0].normal_form
+                if normal_forms[token] == normal_form_to_search and i not in sentences_positions_to_mark.keys():
+                    reg = "[^А-Яа-я]" + token + "[^А-Яа-я]"
+                    sentences_positions_to_mark[i] = [(m.span()[0] + 1, m.span()[1] - 1) for m in
+                                                      re.finditer(reg, self.sentences[i])]
+                elif normal_forms[token] == normal_form_to_search and i in sentences_positions_to_mark.keys():
+                    reg = "[^А-Яа-я]" + token + "[^А-Яа-я]"
+                    sentences_positions_to_mark[i] += [(m.span()[0] + 1, m.span()[1] - 1) for m in
+                                                       re.finditer(reg, self.sentences[i])]
+        forms_count = 0
+        for k in sentences_positions_to_mark.keys():
+            forms_count += len(sentences_positions_to_mark[k])
+            sentences_positions_to_mark[k] = sorted(sentences_positions_to_mark[k], key=lambda to_mark: to_mark[0])
+            highlighted_sentence = ''
+            for j in range(len(sentences_positions_to_mark[k])):
+                if j == 0:
+                    highlighted_sentence += self.sentences[k][0:sentences_positions_to_mark[k][0][0]] + \
+                                            '<span style="background-color:yellow">' + \
+                                            self.sentences[k][
+                                            sentences_positions_to_mark[k][0][0]:sentences_positions_to_mark[k][0][1]] + \
+                                            '</span>'
+                elif j == -1:
+                    highlighted_sentence += self.sentences[k][
+                                            sentences_positions_to_mark[k][-2][1]:sentences_positions_to_mark[k][-1][
+                                                0]] + \
+                                            '<span style="background-color:yellow">' + \
+                                            self.sentences[k][
+                                            sentences_positions_to_mark[k][-1][0]:sentences_positions_to_mark[k][-1][
+                                                1]] + \
+                                            '</span>'
+                else:
+                    highlighted_sentence += self.sentences[k][
+                                            sentences_positions_to_mark[k][j - 1][1]:sentences_positions_to_mark[k][j][
+                                                0]] + \
+                                            '<span style="background-color:yellow">' + \
+                                            self.sentences[k][
+                                            sentences_positions_to_mark[k][j][0]:sentences_positions_to_mark[k][j][1]] + \
+                                            '</span>'
+            highlighted_sentence += self.sentences[k][sentences_positions_to_mark[k][- 1][1]:len(self.sentences[k])]
+            debug.append(highlighted_sentence)
+        self.extended_results['word_forms_count'] = {'value': forms_count,
+                                                     'description': 'Количество употреблений форм слова',
+                                                     'debug': debug}
+        return forms_count
 
     def uniform_rows_count(self):
         """ IPM of sentences with uniform rows"""
@@ -752,6 +910,9 @@ class Text:
         if 'introductory_words_count' in self.attributes.keys():
             self.results['introductory_words_count'] = {'name': self.attributes['introductory_words_count']['name'],
                                                         'result': self.introductory_words_count()}
+        if 'word_forms_count' in self.attributes.keys():
+            self.results['word_forms_count'] = {'name': self.attributes['word_forms_count']['name'],
+                                                'result': self.search()}
         if 'comparatives_count' in self.attributes.keys():
             self.results['comparatives_count'] = {'name': self.attributes['comparatives_count']['name'],
                                                   'result': self.comparatives_count()}
@@ -817,3 +978,4 @@ class Text:
         intensifiers = self.intensifiers_count() if 'intensifiers_count' in self.attributes.keys() else {}
 
         return self.results, self.extended_results, keywords, bigrams, trigrams, intensifiers
+

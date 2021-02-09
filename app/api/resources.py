@@ -29,11 +29,13 @@ class Calculate(Resource):
         first_text_results, first_text_debug, first_text_keywords, first_text_bigrams, first_text_trigrams, first_text_intensifiers = Text(
             json_payload['first_text'],
             json_payload['first_text_genre'],
-            attributes).calculate_results()
+            attributes,
+            json_payload['normal_form']).calculate_results()
         second_text_results, second_text_debug, second_text_keywords, second_text_bigrams, second_text_trigrams, second_text_intensifiers = Text(
             json_payload['second_text'],
             json_payload['second_text_genre'],
-            attributes).calculate_results()
+            attributes,
+            json_payload['normal_form']).calculate_results()
 
         first_array, second_array = prepare_arrays(list(map(lambda k: k[1]['result'], first_text_results.items())),
                                                    list(map(lambda k: k[1]['result'], second_text_results.items())))
