@@ -376,7 +376,8 @@ class Text:
                                             sentences_positions_to_mark[k][j][0]:sentences_positions_to_mark[k][j][1]] + \
                                             '</span>'
             highlighted_sentence += self.sentences[k][sentences_positions_to_mark[k][- 1][1]:len(self.sentences[k])]
-            debug.append(highlighted_sentence)
+            if self.debug_available:
+               debug.append((highlighted_sentence, False))
         self.extended_results['word_forms_count'] = {'value': forms_count,
                                                      'description': 'Количество употреблений форм слова',
                                                      'debug': debug}
