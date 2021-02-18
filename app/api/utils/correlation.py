@@ -60,7 +60,7 @@ def calculate_ngrams_correlation(first_keywords, second_keywords):
         first_array.append(first_keywords.get(key, 0))
         second_array.append(second_keywords.get(key, 0))
     result = round(np.corrcoef(first_array, second_array)[0, 1], 2)
-    return None if math.isnan(result) else result
+    return 'n/a' if math.isnan(result) else result
 
 
 def calculate_score(intensifiers, total_words):

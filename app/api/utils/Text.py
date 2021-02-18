@@ -60,7 +60,7 @@ class Text:
         if self.genre == 'corporate_correspondence':
             return tokenize_corp_sentences(self.text)
         else:
-            return tokenize_sentences(self.text)
+            return list(map(lambda s: s.replace('\n', ' '), tokenize_sentences(self.text)))
 
     def __remove_punkt(self):
         morph_parsed_sentences_wo_punkt = []
