@@ -50,6 +50,7 @@ ANNOTATION_DECIPHER = {
             'SYM': ['PNCT'],
             'NOUN': ['NOUN'],
             'PROPN': ['NOUN'],
+            'AUX': ['VERB', 'PRCL']
         }
 
 with open('./app/api/data/trans_probs.pickle', 'rb') as f:
@@ -306,10 +307,11 @@ class Text:
 
     def search(self):
         normal_form_to_search = self.normal_form
-        normal_forms = {}
-        sentences_positions_to_mark = {}
         debug = []
+        forms_count = 0
         for i in range(len(self.sentences)):
+            matches = []
+            normal_forms = {}
             sentence_tokenized = WordPunctTokenizer().tokenize(self.sentences[i].lower())
             sentence_tokenized.insert(0, '^')
             sentence_tokenized.append("$")
@@ -320,8 +322,8 @@ class Text:
                 for k in range(len(MORPH_ANALYZER.parse(token))):
                     if MORPH_ANALYZER.parse(token)[k].tag.POS not in pos_tag_variant_probabilities.keys():
                         pos_tag_variant_probabilities[MORPH_ANALYZER.parse(token)[k].tag.POS] = \
-                        MORPH_ANALYZER.parse(token)[
-                            k].score
+                            MORPH_ANALYZER.parse(token)[
+                                k].score
                     else:
                         pos_tag_variant_probabilities[MORPH_ANALYZER.parse(token)[k].tag.POS] += \
                             MORPH_ANALYZER.parse(token)[
@@ -338,46 +340,40 @@ class Text:
                             break
                 elif len(possible) == 0:
                     normal_forms[token] = MORPH_ANALYZER.parse(token)[0].normal_form
-                if normal_forms[token] == normal_form_to_search and i not in sentences_positions_to_mark.keys():
-                    reg = "[^А-Яа-я]" + token + "[^А-Яа-я]"
-                    sentences_positions_to_mark[i] = [(m.span()[0] + 1, m.span()[1] - 1) for m in
-                                                      re.finditer(reg, self.sentences[i])]
-                elif normal_forms[token] == normal_form_to_search and i in sentences_positions_to_mark.keys():
-                    reg = "[^А-Яа-я]" + token + "[^А-Яа-я]"
-                    sentences_positions_to_mark[i] += [(m.span()[0] + 1, m.span()[1] - 1) for m in
-                                                       re.finditer(reg, self.sentences[i])]
-        forms_count = 0
-        for k in sentences_positions_to_mark.keys():
-            forms_count += len(sentences_positions_to_mark[k])
-            sentences_positions_to_mark[k] = sorted(sentences_positions_to_mark[k], key=lambda to_mark: to_mark[0])
-            highlighted_sentence = ''
-            for j in range(len(sentences_positions_to_mark[k])):
-                if j == 0:
-                    highlighted_sentence += self.sentences[k][0:sentences_positions_to_mark[k][0][0]] + \
-                                            '<span style="background-color:yellow">' + \
-                                            self.sentences[k][
-                                            sentences_positions_to_mark[k][0][0]:sentences_positions_to_mark[k][0][1]] + \
-                                            '</span>'
-                elif j == -1:
-                    highlighted_sentence += self.sentences[k][
-                                            sentences_positions_to_mark[k][-2][1]:sentences_positions_to_mark[k][-1][
-                                                0]] + \
-                                            '<span style="background-color:yellow">' + \
-                                            self.sentences[k][
-                                            sentences_positions_to_mark[k][-1][0]:sentences_positions_to_mark[k][-1][
-                                                1]] + \
-                                            '</span>'
-                else:
-                    highlighted_sentence += self.sentences[k][
-                                            sentences_positions_to_mark[k][j - 1][1]:sentences_positions_to_mark[k][j][
-                                                0]] + \
-                                            '<span style="background-color:yellow">' + \
-                                            self.sentences[k][
-                                            sentences_positions_to_mark[k][j][0]:sentences_positions_to_mark[k][j][1]] + \
-                                            '</span>'
-            highlighted_sentence += self.sentences[k][sentences_positions_to_mark[k][- 1][1]:len(self.sentences[k])]
-            if self.debug_available:
-               debug.append((highlighted_sentence, False))
+                reg = r"\b" + token + r"\b"
+                if normal_forms[token] == normal_form_to_search:
+                    matches += [(m.span()[0], m.span()[1]) for m in re.finditer(reg, self.sentences[i].lower())]
+            matches = sorted(list(set(matches)), key=lambda to_mark: to_mark[0])
+            if len(matches):
+                forms_count += len(matches)
+                highlighted_sentence = ''
+                for j in range(len(matches)):
+                    if j == 0:
+                        highlighted_sentence += self.sentences[i][0:matches[0][0]] + \
+                                                '<span style="background-color:yellow">' + \
+                                                self.sentences[i][
+                                                matches[0][0]:matches[0][1]] + \
+                                                '</span>'
+                    elif j == -1:
+                        highlighted_sentence += self.sentences[i][
+                                                matches[-2][1]:matches[-1][
+                                                    0]] + \
+                                                '<span style="background-color:yellow">' + \
+                                                self.sentences[i][
+                                                matches[-1][0]:matches[-1][
+                                                    1]] + \
+                                                '</span>'
+                    else:
+                        highlighted_sentence += self.sentences[i][
+                                                matches[j - 1][1]:matches[j][
+                                                    0]] + \
+                                                '<span style="background-color:yellow">' + \
+                                                self.sentences[i][
+                                                matches[j][0]:matches[j][1]] + \
+                                                '</span>'
+                highlighted_sentence += self.sentences[i][matches[- 1][1]:len(self.sentences[i])]
+                if self.debug_available:
+                    debug.append((highlighted_sentence, False))
         self.extended_results['word_forms_count'] = {'value': forms_count,
                                                      'description': 'Количество употреблений форм слова',
                                                      'debug': debug}
