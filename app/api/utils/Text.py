@@ -169,7 +169,7 @@ class Text:
         """ The Flesch–Kincaid readability tests are readability tests designed to indicate
          how difficult a passage in English is to understand """
 
-        return 0.39 * (self.total_words / len(self.sentences)) + 11.8 * (
+        return 0.5 * (self.total_words / len(self.sentences)) + 8.4 * (
                 self.total_syllables / self.total_words) - 15.59
 
     def fog_index(self):
