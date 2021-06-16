@@ -1,4 +1,5 @@
 import itertools
+import re
 
 import nltk
 import pymorphy2
@@ -69,7 +70,7 @@ def parse_word_morph(word):
 def parse_sentence_morph(sentence):
     parsed_sentence = []
     sentence = sentence.replace('  ', ' ')
-    ll = [[word_tokenize(w), ' '] for w in sentence.split()]
+    ll = [[word_tokenize(w), ' '] for w in re.split('\\s|"', sentence)]
     for word in list(itertools.chain(*list(itertools.chain(*ll)))):
         if word in PUNCTUATION:
             parsed_sentence.append((word, None))
