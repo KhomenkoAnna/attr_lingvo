@@ -101,7 +101,7 @@ SYNTAX_SPLICES_REGEX = re.compile(
     flags=re.IGNORECASE)
 
 COMPARATIVE_CLAUSES_REGEX = re.compile(
-    r'((как|подобно тому как|ровно тому как) .+,\s*\b)|(,\s*как .+,\s*\b)|((подобно тому|ровно тому,\s*как) \b)|((как будто|будто|словно|точно) .+,\s*\b)|(, (как будто|будто|словно|точно) \b)',
+    r'(\b(как|подобно тому как|ровно тому как) .+,\s*\b)|(,\s*как .+,\s*\b)|(\b(подобно тому|ровно тому,\s*как) \b)|(\b(как будто|будто|словно|точно) .+,\s*\b)|(, (как будто|будто|словно|точно) \b)',
     flags=re.IGNORECASE)
 
 EPINTHETIC_CONSTRUCTIONS_REGEX = re.compile(r'(\s+(-|—|—)\s+.+\s+(-|—|—)\s+)|(\(.+\))', flags=re.IGNORECASE)
