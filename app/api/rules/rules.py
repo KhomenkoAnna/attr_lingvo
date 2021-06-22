@@ -92,7 +92,7 @@ COMPARATIVES_REGEX_POS = re.compile('(^|[\\s,:\-—«»"\'])(с целью|из 
                                     flags=re.IGNORECASE)
 COMPARATIVES_REGEX = re.compile('(^|[\\s,:\-—«»"\'])(кроме|помимо|включая|наряду с)([\\s,:«»"\'])',
                                 flags=re.IGNORECASE)
-COMPARATIVE_CONSTRUCTIONS_REGEX = re.compile('((,\\s*)(как|будто|словно|точно|как будто) (\w+)*.*(\.|$))|(^(как|будто|словно|точно|как будто) .*,\\s*.*\.$)', flags=re.IGNORECASE)
+COMPARATIVE_CONSTRUCTIONS_REGEX = re.compile('((,\\s*)(как|будто|словно|точно|как будто)\s(\w+)*.*$)|(^(как|будто|словно|точно|как будто) .*,\\s*.*\.$)', flags=re.IGNORECASE)
 
 SYNTAX_SPLICES_REGEX_POS = re.compile('(^|[\\s,:—«»"\'])([а-яА-Яё\-]+)\s+(да и|да)\s+([а-яА-Яё\-]+)($|[\\s,.:—«»"\'])',
                                       flags=re.IGNORECASE)
@@ -101,7 +101,7 @@ SYNTAX_SPLICES_REGEX = re.compile(
     flags=re.IGNORECASE)
 
 COMPARATIVE_CLAUSES_REGEX = re.compile(
-    r'(\b(как|подобно тому как|ровно тому как) .+,\s*\b)|(,\s*как .+,\s*\b)|(\b(подобно тому|ровно тому,\s*как) \b)|(\b(как будто|будто|словно|точно) .+,\s*\b)|(, (как будто|будто|словно|точно) \b)',
+    r'(\b(как|подобно тому как|ровно тому как) .+, .+$)|(,\s*как .+, .+$)|(\b(подобно тому|ровно тому,\s*как) .+$)|(\b(как будто|будто|словно|точно) .+,\s*\b)|(, (как будто|будто|словно|точно) .+$)',
     flags=re.IGNORECASE)
 
 EPINTHETIC_CONSTRUCTIONS_REGEX = re.compile(r'(\s+(-|—|—)\s+.+\s+(-|—|—)\s+)|(\(.+\))', flags=re.IGNORECASE)
