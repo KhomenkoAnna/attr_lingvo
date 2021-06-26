@@ -112,8 +112,8 @@ COMPLEX_SYNTAX_REGEX = re.compile('|'.join(COMPLEX_SYNTAX_ROWS), flags=re.IGNORE
 
 APPEAL_REGEX = re.compile('((^|,\s)(Name|Patr|Surn)(,\s|!|\.|$))|((^|,\s)(Name (Patr|Surn))(,\s|!|\.|$))|((^|,\s)(Name Patr Surn)(,\s|!|\.|$))|((^|,\s)(Surn Name)(,\s|!|\.|$))|((^|\s)эй,\s*(NPRO|NOUN|ADJF|ADJF|Anum)(,|!|$))', flags=re.IGNORECASE)
 
-OURS_PRONOUNS, THEIRS_PRONOUNS = ('я', 'мы', 'мой', 'наш'), \
-                                 ('он', 'вы', 'ты', 'она', 'они', 'её', 'ee', 'его', 'их', 'ваш', 'твой')
+OURS_PRONOUNS, THEIRS_PRONOUNS = ('я', 'мы', 'мой', 'наш', 'моею'), \
+                                 ('он', 'вы', 'ты', 'она', 'они', 'её', 'ee', 'его', 'их', 'ваш', 'твой', 'нею', 'нее', 'неё')
 PRONOUNS_EXCLUSIONS = ('кто', 'что', 'чей', 'какой', 'как', 'каков', 'чего', 'чем', 'где', 'куда', 'откуда')
 
 COMPLEX_WORDS_REGEX = re.compile(r'(^|\s|,|—|:|«|»|"|\')([А-ЯЁa-яё]+)(-|—)([а-яё]+)($|\s|,|\.|:|—|«|»|"|\')',
